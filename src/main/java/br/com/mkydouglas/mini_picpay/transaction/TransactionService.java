@@ -1,9 +1,12 @@
 package br.com.mkydouglas.mini_picpay.transaction;
 
+import java.util.List;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import br.com.mkydouglas.mini_picpay.authorization.AuthorizerService;
+import br.com.mkydouglas.mini_picpay.notification.NotificationService;
 import br.com.mkydouglas.mini_picpay.wallet.Wallet;
 import br.com.mkydouglas.mini_picpay.wallet.WalletRepository;
 import br.com.mkydouglas.mini_picpay.wallet.WalletType;
@@ -13,11 +16,17 @@ public class TransactionService {
     private final TransactionRepository transactionRepository;
     private final WalletRepository walletRepository;
     private final AuthorizerService authorizerService;
+    private final NotificationService notificationService;
 
-    public TransactionService(TransactionRepository transactionRepository, WalletRepository walletRepository, AuthorizerService authorizerService) {
+    public TransactionService(
+        TransactionRepository transactionRepository, 
+        WalletRepository walletRepository, 
+        AuthorizerService authorizerService,
+        NotificationService notificationService) {
         this.transactionRepository = transactionRepository;
         this.walletRepository = walletRepository;
         this.authorizerService = authorizerService;
+        this.notificationService = notificationService;
     }
 
     @Transactional
@@ -30,6 +39,8 @@ public class TransactionService {
         walletRepository.save(wallet.debit(transaction.value()));
 
         authorizerService.authorize(transaction);
+
+        notificationService.notify(transaction);
 
         return newTransaction;
     }
@@ -47,5 +58,9 @@ public class TransactionService {
         return payer.type() == WalletType.COMUM.getValue() && 
         payer.balance().compareTo(transaction.value()) >= 0 &&
         !payer.id().equals(transaction.payee());
+    }
+
+    public List<Transaction> list() {
+        return transactionRepository.findAll();
     }
 }
